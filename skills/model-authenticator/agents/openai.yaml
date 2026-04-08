@@ -1,0 +1,4 @@
+interface:
+  display_name: "Model Authenticator"
+  short_description: "Detect actual models behind relay APIs"
+  default_prompt: "Use $model-authenticator to identify the real model behind this relay endpoint."
