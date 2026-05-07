@@ -69,6 +69,62 @@ PROFILES: dict[str, dict[str, ProbeReply]] = {
         ),
         "identity_hint": ProbeReply(text="qwen"),
     },
+    "anthropic-opus": {
+        "json_strict": ProbeReply(text='{"alpha":4,"beta":11,"gamma":"red"}'),
+        "minimal_math": ProbeReply(text="1073"),
+        "system_priority": ProbeReply(text="SYS-PRIORITY-41"),
+        "context_anchor": ProbeReply(text="teal-17-omega"),
+        "tool_only": ProbeReply(tool_call={"name": EXPECTED_TOOL_NAME, "arguments": EXPECTED_TOOL_ARGS}),
+        "identity_hint": ProbeReply(text="anthropic"),
+    },
+    "anthropic-haiku": {
+        "json_strict": ProbeReply(text='{"alpha":4,"beta":11,"gamma":"red"}'),
+        "minimal_math": ProbeReply(text="1073"),
+        "system_priority": ProbeReply(text="SYS-PRIORITY-41"),
+        "context_anchor": ProbeReply(text="teal-17-gamma"),
+        "tool_only": ProbeReply(tool_call={"name": EXPECTED_TOOL_NAME, "arguments": EXPECTED_TOOL_ARGS}),
+        "identity_hint": ProbeReply(text="anthropic"),
+    },
+    "gemini-pro": {
+        "json_strict": ProbeReply(text='{"alpha":4,"beta":11,"gamma":"red"}'),
+        "minimal_math": ProbeReply(text="1073"),
+        "system_priority": ProbeReply(text="SYS-PRIORITY-41"),
+        "context_anchor": ProbeReply(text="teal-17-omega"),
+        "tool_only": ProbeReply(tool_call={"name": EXPECTED_TOOL_NAME, "arguments": EXPECTED_TOOL_ARGS}),
+        "identity_hint": ProbeReply(text="gemini"),
+    },
+    "mistral": {
+        "json_strict": ProbeReply(text='{"alpha":4,"beta":11,"gamma":"red"}'),
+        "minimal_math": ProbeReply(text="1073"),
+        "system_priority": ProbeReply(text="SYS-PRIORITY-41"),
+        "context_anchor": ProbeReply(text="teal-17-omega"),
+        "tool_only": ProbeReply(tool_call={"name": EXPECTED_TOOL_NAME, "arguments": EXPECTED_TOOL_ARGS}),
+        "identity_hint": ProbeReply(text="mistral"),
+    },
+    "deepseek-reasoner": {
+        "json_strict": ProbeReply(text='{"alpha":4,"beta":11,"gamma":"red"}'),
+        "minimal_math": ProbeReply(text="1073"),
+        "system_priority": ProbeReply(text="USER-OVERRIDE"),
+        "context_anchor": ProbeReply(text="teal-17-omega"),
+        "tool_only": ProbeReply(tool_call={"name": EXPECTED_TOOL_NAME, "arguments": EXPECTED_TOOL_ARGS}),
+        "identity_hint": ProbeReply(text="deepseek"),
+    },
+    "kimi": {
+        "json_strict": ProbeReply(text='{"alpha":4,"beta":11,"gamma":"red"}'),
+        "minimal_math": ProbeReply(text="1073"),
+        "system_priority": ProbeReply(text="SYS-PRIORITY-41"),
+        "context_anchor": ProbeReply(text="teal-17-omega"),
+        "tool_only": ProbeReply(tool_call={"name": EXPECTED_TOOL_NAME, "arguments": EXPECTED_TOOL_ARGS}),
+        "identity_hint": ProbeReply(text="kimi"),
+    },
+    "minimax": {
+        "json_strict": ProbeReply(text='{"alpha":4,"beta":11,"gamma":"red"}'),
+        "minimal_math": ProbeReply(text="1073"),
+        "system_priority": ProbeReply(text="SYS-PRIORITY-41"),
+        "context_anchor": ProbeReply(text="teal-17-gamma"),
+        "tool_only": ProbeReply(tool_call={"name": EXPECTED_TOOL_NAME, "arguments": EXPECTED_TOOL_ARGS}),
+        "identity_hint": ProbeReply(text="minimax"),
+    },
 }
 
 
@@ -235,6 +291,13 @@ class MockRelayServer:
 
     def start(self) -> "MockRelayServer":
         self.thread.start()
+        # Wait for server to actually bind and start accepting connections
+        for _ in range(50):
+            try:
+                with socket.create_connection(("127.0.0.1", self.port), timeout=0.1):
+                    break
+            except (OSError, ConnectionRefusedError):
+                time.sleep(0.01)
         return self
 
     def stop(self) -> None:

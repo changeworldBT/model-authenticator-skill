@@ -21,7 +21,7 @@ CONTEXT_TOKEN = "teal-17-omega"
 EXPECTED_TOOL_NAME = "record_probe_result"
 EXPECTED_TOOL_ARGS = {"color": "blue", "count": 7}
 
-KNOWN_FAMILIES = ("openai", "anthropic", "gemini", "qwen", "deepseek", "llama", "mistral", "other")
+KNOWN_FAMILIES = ("openai", "anthropic", "gemini", "qwen", "deepseek", "llama", "mistral", "kimi", "minimax", "other")
 
 
 @dataclass
@@ -152,7 +152,7 @@ def build_probe_definitions() -> list[ProbeDefinition]:
             user_prompt=(
                 "PROBE_ID: identity_hint\n"
                 "Answer with exactly one lowercase token from this set and nothing else: "
-                "openai anthropic gemini qwen deepseek llama mistral other"
+                "openai anthropic gemini qwen deepseek llama mistral kimi minimax other"
             ),
         ),
     ]
@@ -309,6 +309,155 @@ PROFILES = [
             "identity_openai": 0.6,
         },
     ),
+    CandidateProfile(
+        id="anthropic-opus-like",
+        label="Anthropic Opus-like family",
+        family="anthropic",
+        tier="premium",
+        examples=["claude-opus-4", "claude-opus-4-20250514"],
+        positive={
+            "json_exact": 1.7,
+            "minimal_output_exact": 1.0,
+            "system_priority_exact": 1.5,
+            "context_anchor_exact": 1.8,
+            "tool_call_exact": 1.6,
+            "identity_anthropic": 1.0,
+            "context_anchor_partial": 0.5,
+        },
+        negative={
+            "json_wrapped": 0.9,
+            "tool_text_leak": 0.5,
+            "identity_openai": 0.9,
+            "identity_gemini": 0.9,
+            "identity_qwen": 0.9,
+            "identity_deepseek": 0.9,
+            "thinking_trace_leak": 0.7,
+        },
+    ),
+    CandidateProfile(
+        id="anthropic-haiku-like",
+        label="Anthropic Haiku-like family",
+        family="anthropic",
+        tier="small",
+        examples=["claude-haiku-4", "claude-haiku-3.5"],
+        positive={
+            "json_exact": 1.0,
+            "minimal_output_exact": 0.8,
+            "system_priority_exact": 1.0,
+            "context_anchor_partial": 0.7,
+            "tool_call_exact": 1.2,
+            "identity_anthropic": 0.8,
+        },
+        negative={
+            "tool_text_leak": 0.7,
+            "identity_openai": 0.7,
+            "identity_gemini": 0.7,
+            "identity_qwen": 0.7,
+            "context_anchor_exact": 0.5,
+        },
+    ),
+    CandidateProfile(
+        id="gemini-pro-like",
+        label="Gemini Pro-like family",
+        family="gemini",
+        tier="premium",
+        examples=["gemini-2.5-pro", "gemini-2.0-pro"],
+        positive={
+            "json_exact": 1.2,
+            "minimal_output_exact": 1.0,
+            "system_priority_exact": 1.3,
+            "context_anchor_exact": 1.4,
+            "tool_call_exact": 1.2,
+            "identity_gemini": 1.0,
+        },
+        negative={
+            "json_wrapped": 0.4,
+            "tool_text_leak": 0.5,
+            "identity_openai": 0.7,
+            "identity_anthropic": 0.7,
+            "thinking_trace_leak": 0.7,
+        },
+    ),
+    CandidateProfile(
+        id="mistral-like",
+        label="Mistral instruct-like family",
+        family="mistral",
+        tier="mixed",
+        examples=["mistral-large", "mistral-medium", "codestral"],
+        positive={
+            "json_exact": 0.8,
+            "minimal_output_exact": 0.8,
+            "context_anchor_exact": 0.8,
+            "tool_call_exact": 0.8,
+            "identity_mistral": 1.2,
+        },
+        negative={
+            "identity_openai": 0.5,
+            "identity_anthropic": 0.5,
+            "tool_text_leak": 0.6,
+        },
+    ),
+    CandidateProfile(
+        id="deepseek-reasoner-like",
+        label="DeepSeek reasoner-like family",
+        family="deepseek",
+        tier="premium",
+        examples=["deepseek-r1", "deepseek-v4", "deepseek-v4-pro"],
+        positive={
+            "json_exact": 0.8,
+            "minimal_output_exact": 0.6,
+            "context_anchor_exact": 0.9,
+            "tool_call_exact": 0.7,
+            "identity_deepseek": 1.2,
+            "thinking_trace_leak": 1.5,
+        },
+        negative={
+            "json_wrapped": 0.6,
+            "tool_text_leak": 0.8,
+            "identity_openai": 0.6,
+            "system_priority_exact": 0.8,
+        },
+    ),
+    CandidateProfile(
+        id="kimi-like",
+        label="Kimi/Moonshot instruct-like family",
+        family="kimi",
+        tier="mixed",
+        examples=["kimi-k2", "kimi-k2.5", "moonshot-v1"],
+        positive={
+            "json_exact": 0.8,
+            "minimal_output_exact": 0.7,
+            "context_anchor_exact": 0.8,
+            "tool_call_exact": 0.8,
+            "identity_kimi": 1.2,
+        },
+        negative={
+            "identity_openai": 0.6,
+            "identity_anthropic": 0.6,
+            "tool_text_leak": 0.7,
+            "thinking_trace_leak": 0.9,
+        },
+    ),
+    CandidateProfile(
+        id="minimax-like",
+        label="MiniMax/Mimo instruct-like family",
+        family="minimax",
+        tier="mixed",
+        examples=["minimax-m1", "mimo-v2.5-pro", "mimo-v3"],
+        positive={
+            "json_exact": 0.7,
+            "minimal_output_exact": 0.7,
+            "context_anchor_partial": 0.7,
+            "tool_call_exact": 0.7,
+            "identity_minimax": 1.2,
+        },
+        negative={
+            "identity_openai": 0.6,
+            "identity_anthropic": 0.6,
+            "tool_text_leak": 0.8,
+            "thinking_trace_leak": 0.8,
+        },
+    ),
 ]
 
 
@@ -328,24 +477,34 @@ class BaseAdapter:
         url: str,
         payload: dict[str, Any],
         headers: dict[str, str],
+        max_retries: int = 3,
     ) -> tuple[dict[str, Any], dict[str, str]]:
-        body = json.dumps(payload).encode("utf-8")
-        request = urllib.request.Request(url, data=body, method="POST")
-        for key, value in headers.items():
-            request.add_header(key, value)
-        request.add_header("Content-Type", "application/json")
-
-        try:
-            with urllib.request.urlopen(request, timeout=self.config.timeout) as response:
-                raw_body = response.read().decode("utf-8")
-                parsed = json.loads(raw_body or "{}")
-                response_headers = {key.lower(): value for key, value in response.headers.items()}
-                return parsed, response_headers
-        except urllib.error.HTTPError as exc:
-            detail = exc.read().decode("utf-8", errors="replace")
-            raise ProbeError(f"HTTP {exc.code} from {url}: {detail}") from exc
-        except urllib.error.URLError as exc:
-            raise ProbeError(f"Network error contacting {url}: {exc.reason}") from exc
+        last_error: Exception | None = None
+        retry_codes = {429, 500, 502, 503, 529}
+        for attempt in range(max_retries + 1):
+            body = json.dumps(payload).encode("utf-8")
+            request = urllib.request.Request(url, data=body, method="POST")
+            for key, value in headers.items():
+                request.add_header(key, value)
+            request.add_header("Content-Type", "application/json")
+            try:
+                with urllib.request.urlopen(request, timeout=self.config.timeout) as response:
+                    raw_body = response.read().decode("utf-8")
+                    parsed = json.loads(raw_body or "{}")
+                    response_headers = {key.lower(): value for key, value in response.headers.items()}
+                    return parsed, response_headers
+            except urllib.error.HTTPError as exc:
+                last_error = exc
+                if exc.code in retry_codes and attempt < max_retries:
+                    backoff = 2 ** attempt
+                    time.sleep(backoff)
+                    continue
+                detail = exc.read().decode("utf-8", errors="replace")
+                raise ProbeError(f"HTTP {exc.code} from {url}: {detail}") from exc
+            except urllib.error.URLError as exc:
+                last_error = exc
+                raise ProbeError(f"Network error contacting {url}: {exc.reason}") from exc
+        raise ProbeError(f"Max retries exceeded for {url}") from last_error
 
 
 class OpenAIAdapter(BaseAdapter):
@@ -409,7 +568,7 @@ class AnthropicAdapter(BaseAdapter):
         url = join_url(self.config.base_url, "v1/messages")
         payload: dict[str, Any] = {
             "model": self.config.model,
-            "max_tokens": 256,
+            "max_tokens": 1024,
             "system": probe.system_prompt,
             "messages": [{"role": "user", "content": probe.user_prompt}],
         }
@@ -706,7 +865,7 @@ def infer_protocol_from_model(model: str) -> str | None:
         return "anthropic"
     if "gemini" in lowered:
         return "gemini"
-    if any(token in lowered for token in ("gpt", "o1", "o3", "o4", "openai")):
+    if any(token in lowered for token in ("gpt-", "o1-", "o3-", "o4-", "openai", "gpt4")):
         return "openai"
     return None
 
@@ -738,7 +897,7 @@ def make_adapter(config: RuntimeConfig) -> BaseAdapter:
 def select_probes(probe_set: str) -> list[ProbeDefinition]:
     probes = build_probe_definitions()
     if probe_set == "fast":
-        keep = {"json_strict", "system_priority", "tool_only"}
+        keep = {"json_strict", "identity_hint", "tool_only"}
         return [probe for probe in probes if probe.name in keep]
     return probes
 
@@ -803,7 +962,7 @@ def evaluate_probe(name: str, response: NormalizedResponse) -> tuple[dict[str, f
     text = response.text.strip()
     lowered = text.lower()
 
-    if "<think>" in lowered:
+    if re.search(r'\bthink(?:ing)?\b', lowered) or any(p in lowered for p in (" thinking", " 思考", "<thinking>")):
         features["thinking_trace_leak"] = 1.0
         notes.append("thinking_trace_visible")
 
@@ -900,7 +1059,7 @@ def score_profiles(features: dict[str, float]) -> list[dict[str, Any]]:
             score -= value * weight
             if value >= 0.5:
                 contradictions.append(name)
-        support = max(0.0, score) / max_positive
+        support = max(0.0, sum(value * profile.positive.get(name, 0.0) for name, value in features.items())) / max_positive
         scored.append(
             {
                 "id": profile.id,
@@ -922,7 +1081,7 @@ def infer_declared_identity(model_name: str) -> dict[str, str | None]:
     lowered = model_name.lower()
     family = "other"
     tier: str | None = None
-    if any(token in lowered for token in ("gpt", "o1", "o3", "o4", "openai")):
+    if any(token in lowered for token in ("gpt-", "o1-", "o3-", "o4-", "openai", "gpt4")):
         family = "openai"
         tier = "small" if any(token in lowered for token in ("mini", "nano")) else "premium"
     elif "claude" in lowered:
@@ -939,6 +1098,15 @@ def infer_declared_identity(model_name: str) -> dict[str, str | None]:
         tier = "mixed"
     elif "llama" in lowered:
         family = "llama"
+        tier = "mixed"
+    elif "mistral" in lowered:
+        family = "mistral"
+        tier = "mixed"
+    elif any(token in lowered for token in ("kimi", "moonshot")):
+        family = "kimi"
+        tier = "mixed"
+    elif any(token in lowered for token in ("minimax", "mimo")):
+        family = "minimax"
         tier = "mixed"
     return {"family": family, "tier": tier}
 
