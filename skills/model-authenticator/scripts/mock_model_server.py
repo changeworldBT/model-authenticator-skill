@@ -256,8 +256,12 @@ class _Handler(BaseHTTPRequestHandler):
             self._send_json(404, {"error": {"message": f"Unknown path: {self.path}"}})
             return
 
-        probe_name, model = _extract_probe_name(payload, protocol)
         profile = getattr(self.server, "profile", "openai-premium")
+        if profile == "invalid-json":
+            self._send_raw(200, "<html>not a JSON API response</html>", "text/html")
+            return
+
+        probe_name, model = _extract_probe_name(payload, protocol)
         reply = PROFILES.get(profile, {}).get(probe_name, ProbeReply(text="unknown"))
 
         if protocol == "openai":
@@ -274,8 +278,12 @@ class _Handler(BaseHTTPRequestHandler):
 
     def _send_json(self, status_code: int, payload: dict[str, Any]) -> None:
         body = json.dumps(payload).encode("utf-8")
+        self._send_raw(status_code, body, "application/json")
+
+    def _send_raw(self, status_code: int, payload: str | bytes, content_type: str) -> None:
+        body = payload.encode("utf-8") if isinstance(payload, str) else payload
         self.send_response(status_code)
-        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)

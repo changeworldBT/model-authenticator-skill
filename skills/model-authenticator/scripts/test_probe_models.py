@@ -7,6 +7,7 @@ import json
 import os
 import subprocess
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -18,17 +19,37 @@ SCRIPT_PATH = Path(__file__).with_name("probe_models.py")
 class ProbeModelsIntegrationTests(unittest.TestCase):
     maxDiff = None
 
-    def run_probe(self, env_overrides: dict[str, str]) -> tuple[int, dict]:
+    def run_probe(self, env_overrides: dict[str, str], cwd: Path | None = None) -> tuple[int, dict]:
         env = os.environ.copy()
+        for key in (
+            "MODEL_AUTH_PROTOCOL",
+            "MODEL_AUTH_BASE_URL",
+            "MODEL_AUTH_API_KEY",
+            "MODEL_AUTH_MODEL",
+            "OPENAI_BASE_URL",
+            "OPENAI_API_BASE",
+            "OPENAI_API_KEY",
+            "OPENAI_MODEL",
+            "OPENROUTER_BASE_URL",
+            "OPENROUTER_API_KEY",
+            "ANTHROPIC_BASE_URL",
+            "ANTHROPIC_API_KEY",
+            "ANTHROPIC_MODEL",
+            "GEMINI_BASE_URL",
+            "GEMINI_API_KEY",
+            "GEMINI_MODEL",
+            "BASE_URL",
+            "API_KEY",
+            "MODEL_NAME",
+        ):
+            env.pop(key, None)
         env.update(env_overrides)
-        env.pop("OPENAI_API_KEY", None)
-        env.pop("ANTHROPIC_API_KEY", None)
-        env.pop("GEMINI_API_KEY", None)
         completed = subprocess.run(
             [sys.executable, str(SCRIPT_PATH)],
             capture_output=True,
             text=True,
             env=env,
+            cwd=cwd,
             timeout=20,
             check=False,
         )
@@ -56,6 +77,10 @@ class ProbeModelsIntegrationTests(unittest.TestCase):
             server.stop()
 
         self.assertEqual(code, 0)
+        self.assertEqual(report["declared_model"], "gpt-4o")
+        self.assertEqual(report["runtime"]["declared_model"], "gpt-4o")
+        self.assertIn("env:MODEL_AUTH_MODEL", report["runtime"]["config_sources"])
+        self.assertIn("env:MODEL_AUTH_BASE_URL", report["runtime"]["config_sources"])
         self.assertEqual(report["candidate_models"][0]["id"], "openai-premium")
         self.assertFalse(report["mismatch_detected"])
         self.assertGreaterEqual(report["confidence"], 0.7)
@@ -118,6 +143,100 @@ class ProbeModelsIntegrationTests(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertEqual(report["candidate_models"][0]["family"], "gemini")
         self.assertFalse(report["mismatch_detected"])
+
+    def test_invalid_json_response_emits_json_error(self) -> None:
+        server = MockRelayServer("invalid-json").start()
+        try:
+            code, report = self.run_probe(
+                {
+                    "MODEL_AUTH_PROTOCOL": "openai",
+                    "MODEL_AUTH_BASE_URL": server.openai_base_url,
+                    "MODEL_AUTH_API_KEY": "test-key",
+                    "MODEL_AUTH_MODEL": "gpt-4o",
+                }
+            )
+        finally:
+            server.stop()
+
+        self.assertEqual(code, 1)
+        self.assertEqual(report["status"], "unreachable")
+        self.assertTrue(any("Invalid JSON" in item for item in report["contradictions"]))
+
+    def test_invalid_json_response_redacts_gemini_api_key(self) -> None:
+        secret = "SECRET_KEY_REPRO_123"
+        server = MockRelayServer("invalid-json").start()
+        try:
+            code, report = self.run_probe(
+                {
+                    "MODEL_AUTH_PROTOCOL": "gemini",
+                    "MODEL_AUTH_BASE_URL": server.gemini_base_url,
+                    "MODEL_AUTH_API_KEY": secret,
+                    "MODEL_AUTH_MODEL": "gemini-2.0-flash",
+                }
+            )
+        finally:
+            server.stop()
+
+        serialized = json.dumps(report)
+        self.assertEqual(code, 1)
+        self.assertNotIn(secret, serialized)
+        self.assertNotIn("?key=", serialized)
+
+    def test_process_env_wins_over_env_file_across_key_order(self) -> None:
+        server = MockRelayServer("openai-premium").start()
+        try:
+            with tempfile.TemporaryDirectory() as temp_dir:
+                temp_path = Path(temp_dir)
+                (temp_path / ".env").write_text("MODEL_AUTH_API_KEY=file-key\n", encoding="utf-8")
+                code, report = self.run_probe(
+                    {
+                        "MODEL_AUTH_PROTOCOL": "openai",
+                        "MODEL_AUTH_BASE_URL": server.openai_base_url,
+                        "OPENAI_API_KEY": "env-key",
+                        "MODEL_AUTH_MODEL": "gpt-4o",
+                    },
+                    cwd=temp_path,
+                )
+        finally:
+            server.stop()
+
+        self.assertEqual(code, 0)
+        self.assertIn("env:OPENAI_API_KEY", report["runtime"]["config_sources"])
+        self.assertFalse(
+            any(source.startswith("env-file:") and source.endswith(":MODEL_AUTH_API_KEY")
+                for source in report["runtime"]["config_sources"])
+        )
+
+    def test_codex_protocol_hint_is_used_for_non_inferable_model(self) -> None:
+        server = MockRelayServer("anthropic-sonnet").start()
+        try:
+            with tempfile.TemporaryDirectory() as temp_dir:
+                temp_path = Path(temp_dir)
+                codex_dir = temp_path / ".codex"
+                codex_dir.mkdir()
+                (codex_dir / "config.toml").write_text(
+                    "\n".join(
+                        [
+                            'model = "private-relay-model"',
+                            'protocol = "anthropic"',
+                            f'base_url = "{server.anthropic_base_url}"',
+                        ]
+                    ),
+                    encoding="utf-8",
+                )
+                code, report = self.run_probe(
+                    {
+                        "USERPROFILE": str(temp_path),
+                        "HOME": str(temp_path),
+                    },
+                    cwd=temp_path,
+                )
+        finally:
+            server.stop()
+
+        self.assertEqual(code, 0)
+        self.assertEqual(report["runtime"]["protocol"], "anthropic")
+        self.assertIn("codex:config.toml:protocol", report["runtime"]["config_sources"])
 
 
 if __name__ == "__main__":

@@ -1,6 +1,6 @@
 ---
 name: model-authenticator
-description: Detect the likely actual model behind relay, proxy, or model-routing endpoints instead of trusting the advertised model name. Use when Codex needs to verify whether a provider swapped a premium model for a cheaper one, audit suspicious behavior from an OpenAI-compatible, Anthropic-compatible, or Gemini-style API, identify the real family or tier behind already-configured base_url and API key credentials, or produce an evidence-backed candidate list with confidence and mismatch risk.
+description: Use when verifying, auditing, or identifying the real model behind a relay, proxy, router, or OpenAI/Anthropic/Gemini-compatible API, especially for suspected model substitution, downgrade, spoofed model names, or evidence-backed model attribution.
 ---
 
 # Model Authenticator
@@ -11,19 +11,19 @@ Treat endpoint metadata such as the returned `model` field as low-trust evidence
 
 ## Quick Start
 
-Run the bundled script with no flags first:
+From `skills/model-authenticator/`, run the bundled script with no flags first:
 
 ```bash
 python scripts/probe_models.py
 ```
 
-The script resolves configuration in this order:
+The script resolves each effective value in this order:
 1. Explicit CLI flags
 2. `MODEL_AUTH_*` environment variables
 3. Provider-specific environment variables such as `OPENAI_*`, `ANTHROPIC_*`, or `GEMINI_*`
 4. `.env.local` and `.env` in the current working directory
-5. `~/.codex/config.toml` for a fallback model name when available
-6. `~/.config/opencode/opencode.jsonc` for OpenAI-compatible provider and base URL hints
+5. `~/.codex/config.toml` for fallback model, base URL, API key, or protocol hints
+6. `~/.config/opencode/opencode.jsonc` for OpenAI-compatible provider, model, and base URL hints
 
 If autodiscovery misses something, rerun with explicit overrides:
 
@@ -42,6 +42,7 @@ python scripts/probe_models.py --protocol gemini --base-url https://example.com/
 5. Read the JSON report and summarize:
    - `status`
    - `declared_model`
+   - `runtime.config_sources`
    - `suspected_actual_model` or `candidate_models`
    - `confidence`
    - `risk_level`

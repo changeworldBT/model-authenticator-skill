@@ -465,6 +465,19 @@ class ProbeError(RuntimeError):
     pass
 
 
+def redact_sensitive_text(text: str, api_key: str) -> str:
+    if api_key:
+        text = text.replace(api_key, "[REDACTED]")
+    return text
+
+
+def redact_url_for_error(url: str) -> str:
+    parsed = urllib.parse.urlparse(url)
+    if not parsed.scheme:
+        return url
+    return urllib.parse.urlunparse((parsed.scheme, parsed.netloc, parsed.path, "", "", ""))
+
+
 class BaseAdapter:
     def __init__(self, config: RuntimeConfig) -> None:
         self.config = config
@@ -481,6 +494,7 @@ class BaseAdapter:
     ) -> tuple[dict[str, Any], dict[str, str]]:
         last_error: Exception | None = None
         retry_codes = {429, 500, 502, 503, 529}
+        safe_url = redact_url_for_error(url)
         for attempt in range(max_retries + 1):
             body = json.dumps(payload).encode("utf-8")
             request = urllib.request.Request(url, data=body, method="POST")
@@ -489,8 +503,14 @@ class BaseAdapter:
             request.add_header("Content-Type", "application/json")
             try:
                 with urllib.request.urlopen(request, timeout=self.config.timeout) as response:
-                    raw_body = response.read().decode("utf-8")
-                    parsed = json.loads(raw_body or "{}")
+                    raw_bytes = response.read()
+                    try:
+                        raw_body = raw_bytes.decode("utf-8")
+                        parsed = json.loads(raw_body or "{}")
+                    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+                        preview = raw_bytes[:160].decode("utf-8", errors="replace").replace("\n", "\\n")
+                        preview = redact_sensitive_text(preview, self.config.api_key)
+                        raise ProbeError(f"Invalid JSON from {safe_url}: {preview}") from exc
                     response_headers = {key.lower(): value for key, value in response.headers.items()}
                     return parsed, response_headers
             except urllib.error.HTTPError as exc:
@@ -500,11 +520,12 @@ class BaseAdapter:
                     time.sleep(backoff)
                     continue
                 detail = exc.read().decode("utf-8", errors="replace")
-                raise ProbeError(f"HTTP {exc.code} from {url}: {detail}") from exc
+                detail = redact_sensitive_text(detail, self.config.api_key)
+                raise ProbeError(f"HTTP {exc.code} from {safe_url}: {detail}") from exc
             except urllib.error.URLError as exc:
                 last_error = exc
-                raise ProbeError(f"Network error contacting {url}: {exc.reason}") from exc
-        raise ProbeError(f"Max retries exceeded for {url}") from last_error
+                raise ProbeError(f"Network error contacting {safe_url}: {exc.reason}") from exc
+        raise ProbeError(f"Max retries exceeded for {safe_url}") from last_error
 
 
 class OpenAIAdapter(BaseAdapter):
@@ -772,81 +793,143 @@ def load_opencode_config() -> dict[str, str]:
 
 def resolve_runtime_config(args: argparse.Namespace) -> RuntimeConfig:
     env_from_files: dict[str, str] = {}
-    sources: list[str] = []
+    env_file_sources: dict[str, str] = {}
     for candidate in (Path.cwd() / ".env.local", Path.cwd() / ".env"):
         parsed = parse_env_file(candidate)
         if parsed:
             env_from_files.update(parsed)
-            sources.append(str(candidate))
+            for key in parsed:
+                env_file_sources[key] = str(candidate)
     codex_config = load_codex_config()
-    if codex_config:
-        sources.append(str(Path.home() / ".codex" / "config.toml"))
     opencode_config = load_opencode_config()
-    if opencode_config:
-        sources.append(str(Path.home() / ".config" / "opencode" / "opencode.jsonc"))
 
-    def pick(*keys: str) -> str | None:
+    sources: list[str] = []
+
+    def add_source(source: str) -> None:
+        if source not in sources:
+            sources.append(source)
+
+    def pick(
+        arg_name: str | None,
+        *keys: str,
+        fallbacks: list[tuple[str, str | None]] | None = None,
+        default: tuple[str, str] | None = None,
+    ) -> str | None:
+        if arg_name:
+            value = getattr(args, arg_name, None)
+            if isinstance(value, str) and value:
+                add_source(f"cli:--{arg_name.replace('_', '-')}")
+                return value
         for key in keys:
-            attr_name = key.lower().replace("-", "_")
-            if hasattr(args, attr_name):
-                value = getattr(args, attr_name, None)
-                if isinstance(value, str) and value:
-                    return value
-            for mapping in (os.environ, env_from_files):
-                if key in mapping and mapping[key]:
-                    return mapping[key]
+            if key in os.environ and os.environ[key]:
+                add_source(f"env:{key}")
+                return os.environ[key]
+        for key in keys:
+            if key in env_from_files and env_from_files[key]:
+                add_source(f"env-file:{env_file_sources.get(key, '.env')}:{key}")
+                return env_from_files[key]
+        for source, value in fallbacks or []:
+            if value:
+                add_source(source)
+                return value
+        if default:
+            source, value = default
+            add_source(source)
+            return value
         return None
 
-    model = args.model or pick(
+    model = pick(
+        "model",
         "MODEL_AUTH_MODEL",
         "OPENAI_MODEL",
         "ANTHROPIC_MODEL",
         "GEMINI_MODEL",
         "MODEL_NAME",
-    ) or codex_config.get("model") or opencode_config.get("model")
+        fallbacks=[
+            ("codex:config.toml:model", codex_config.get("model")),
+            ("opencode:opencode.jsonc:model", opencode_config.get("model")),
+        ],
+    )
     if not model:
         raise ProbeError("Could not resolve a model name. Set MODEL_AUTH_MODEL or pass --model.")
 
-    protocol = args.protocol or pick("MODEL_AUTH_PROTOCOL")
+    protocol = pick(
+        "protocol",
+        "MODEL_AUTH_PROTOCOL",
+        fallbacks=[
+            ("codex:config.toml:protocol", codex_config.get("protocol")),
+            ("opencode:opencode.jsonc:provider", opencode_config.get("provider")),
+            ("inferred:model", infer_protocol_from_model(model)),
+        ],
+        default=("default:protocol", "openai"),
+    )
     if not protocol:
-        protocol = infer_protocol_from_model(model) or opencode_config.get("provider") or "openai"
+        raise ProbeError("Could not resolve a protocol. Set MODEL_AUTH_PROTOCOL or pass --protocol.")
+    if protocol not in {"openai", "anthropic", "gemini"}:
+        raise ProbeError(
+            f"Unsupported protocol {protocol!r}. Expected one of: openai, anthropic, gemini."
+        )
 
     if protocol == "openai":
-        base_url = args.base_url or pick(
+        base_url = pick(
+            "base_url",
             "MODEL_AUTH_BASE_URL",
             "OPENAI_BASE_URL",
             "OPENAI_API_BASE",
             "OPENROUTER_BASE_URL",
             "BASE_URL",
-        ) or codex_config.get("base_url") or opencode_config.get("base_url") or "https://api.openai.com/v1"
-        api_key = args.api_key or pick(
+            fallbacks=[
+                ("codex:config.toml:base_url", codex_config.get("base_url")),
+                ("opencode:opencode.jsonc:base_url", opencode_config.get("base_url")),
+            ],
+            default=("default:openai_base_url", "https://api.openai.com/v1"),
+        )
+        api_key = pick(
+            "api_key",
             "MODEL_AUTH_API_KEY",
             "OPENAI_API_KEY",
             "OPENROUTER_API_KEY",
             "API_KEY",
-        ) or codex_config.get("api_key") or ""
+            fallbacks=[("codex:config.toml:api_key", codex_config.get("api_key"))],
+        ) or ""
     elif protocol == "anthropic":
-        base_url = args.base_url or pick(
+        base_url = pick(
+            "base_url",
             "MODEL_AUTH_BASE_URL",
             "ANTHROPIC_BASE_URL",
             "BASE_URL",
-        ) or codex_config.get("base_url") or opencode_config.get("base_url") or "https://api.anthropic.com"
-        api_key = args.api_key or pick(
+            fallbacks=[
+                ("codex:config.toml:base_url", codex_config.get("base_url")),
+                ("opencode:opencode.jsonc:base_url", opencode_config.get("base_url")),
+            ],
+            default=("default:anthropic_base_url", "https://api.anthropic.com"),
+        )
+        api_key = pick(
+            "api_key",
             "MODEL_AUTH_API_KEY",
             "ANTHROPIC_API_KEY",
             "API_KEY",
-        ) or codex_config.get("api_key") or ""
+            fallbacks=[("codex:config.toml:api_key", codex_config.get("api_key"))],
+        ) or ""
     else:
-        base_url = args.base_url or pick(
+        base_url = pick(
+            "base_url",
             "MODEL_AUTH_BASE_URL",
             "GEMINI_BASE_URL",
             "BASE_URL",
-        ) or codex_config.get("base_url") or opencode_config.get("base_url") or "https://generativelanguage.googleapis.com/v1beta"
-        api_key = args.api_key or pick(
+            fallbacks=[
+                ("codex:config.toml:base_url", codex_config.get("base_url")),
+                ("opencode:opencode.jsonc:base_url", opencode_config.get("base_url")),
+            ],
+            default=("default:gemini_base_url", "https://generativelanguage.googleapis.com/v1beta"),
+        )
+        api_key = pick(
+            "api_key",
             "MODEL_AUTH_API_KEY",
             "GEMINI_API_KEY",
             "API_KEY",
-        ) or codex_config.get("api_key") or ""
+            fallbacks=[("codex:config.toml:api_key", codex_config.get("api_key"))],
+        ) or ""
 
     return RuntimeConfig(
         protocol=protocol,
@@ -855,7 +938,7 @@ def resolve_runtime_config(args: argparse.Namespace) -> RuntimeConfig:
         model=model,
         timeout=args.timeout,
         probe_set=args.probe_set,
-        config_sources=sources or ["environment"],
+        config_sources=sources,
     )
 
 
@@ -1222,6 +1305,7 @@ def build_report(config: RuntimeConfig, observations: list[ProbeObservation]) ->
         return {
             "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
             "status": status,
+            "declared_model": config.model,
             "runtime": {
                 "protocol": config.protocol,
                 "base_url": mask_base_url(config.base_url),
@@ -1259,6 +1343,7 @@ def build_report(config: RuntimeConfig, observations: list[ProbeObservation]) ->
     risk_level, mismatch_detected = assess_risk(declared_identity, top_candidate, confidence)
     report: dict[str, Any] = {
         "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "declared_model": config.model,
         "runtime": {
             "protocol": config.protocol,
             "base_url": mask_base_url(config.base_url),

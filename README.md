@@ -48,7 +48,7 @@ The exact install path depends on the client. The skill itself is the `skills/mo
 
 ## Configuration Discovery
 
-The probe script resolves configuration in this order:
+The probe script resolves each effective value in this order:
 
 1. CLI flags
 2. `MODEL_AUTH_*` environment variables
@@ -58,6 +58,7 @@ The probe script resolves configuration in this order:
 6. `~/.config/opencode/opencode.jsonc`
 
 This makes zero-argument probing possible when your relay is already configured locally.
+Reports include `runtime.config_sources` so you can see which source actually supplied the model, base URL, API key, protocol, or defaults.
 
 ## Usage
 
@@ -91,12 +92,23 @@ python skills/model-authenticator/scripts/probe_models.py --protocol gemini --ba
 python skills/model-authenticator/scripts/probe_models.py --fail-on-mismatch
 ```
 
+### Fast Triage, Saved Report, and Timeout
+
+```bash
+python skills/model-authenticator/scripts/probe_models.py --probe-set fast
+python skills/model-authenticator/scripts/probe_models.py --report-path report.json
+python skills/model-authenticator/scripts/probe_models.py --timeout 60
+```
+
+Run `python skills/model-authenticator/scripts/probe_models.py --help` for the full CLI surface.
+
 ## Output Model
 
 The script emits JSON with these key fields:
 
 - `status`: `ok`, `partial`, or `unreachable`
 - `declared_model`: the claimed model you targeted
+- `runtime`: protocol, masked base URL, declared model, and `config_sources`
 - `suspected_actual_model`: strong single conclusion when confidence is high enough
 - `candidate_models`: ranked fallback list when the evidence is weaker
 - `confidence`: aggregated confidence score
@@ -145,6 +157,14 @@ python C:\Users\84915\.codex\skills\.system\skill-creator\scripts\quick_validate
 - Some relays rewrite or normalize responses, which can blur family-level signals
 - Middleware can alter style without changing the underlying model
 - A single session may be inconclusive; rerun when the endpoint is unstable or partially implemented
+
+## Contributing
+
+Issues and pull requests are welcome. See [CONTRIBUTING.md](./CONTRIBUTING.md) before changing probe behavior, candidate profiles, protocol adapters, or validation fixtures.
+
+## Contributors
+
+See the live GitHub contributors graph: <https://github.com/changeworldBT/model-authenticator-skill/graphs/contributors>.
 
 ## Repository
 

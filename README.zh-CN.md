@@ -48,7 +48,7 @@ Copy-Item -Recurse .\skills\model-authenticator "$HOME\.codex\skills\"
 
 ## 自动发现顺序
 
-探针脚本会按这个顺序寻找配置：
+探针脚本会按这个顺序解析每个最终生效的配置值：
 
 1. CLI 参数
 2. `MODEL_AUTH_*` 环境变量
@@ -58,6 +58,7 @@ Copy-Item -Recurse .\skills\model-authenticator "$HOME\.codex\skills\"
 6. `~/.config/opencode/opencode.jsonc`
 
 如果你的 relay 已经在本地配置好了，通常可以直接零参数运行。
+报告里的 `runtime.config_sources` 会列出实际命中的来源，便于确认 model、base URL、API key、protocol 或默认值来自哪里。
 
 ## 使用方式
 
@@ -91,12 +92,23 @@ python skills/model-authenticator/scripts/probe_models.py --protocol gemini --ba
 python skills/model-authenticator/scripts/probe_models.py --fail-on-mismatch
 ```
 
+### 快速探测、保存报告和超时
+
+```bash
+python skills/model-authenticator/scripts/probe_models.py --probe-set fast
+python skills/model-authenticator/scripts/probe_models.py --report-path report.json
+python skills/model-authenticator/scripts/probe_models.py --timeout 60
+```
+
+完整 CLI 参数可运行 `python skills/model-authenticator/scripts/probe_models.py --help` 查看。
+
 ## 输出说明
 
 脚本会输出 JSON，核心字段包括：
 
 - `status`：`ok`、`partial` 或 `unreachable`
 - `declared_model`：你要测试的声明模型
+- `runtime`：protocol、脱敏后的 base URL、声明模型和 `config_sources`
 - `suspected_actual_model`：在置信度足够高时给出的单一强结论
 - `candidate_models`：证据较弱时返回的候选排序
 - `confidence`：综合置信度
@@ -145,6 +157,14 @@ python C:\Users\84915\.codex\skills\.system\skill-creator\scripts\quick_validate
 - 某些 relay 会重写或标准化响应，导致家族特征被抹平
 - 中间件可能改变风格，但底层模型并没有变
 - 单次会话可能不足以下结论；如果端点不稳定或协议支持不完整，建议重复探测
+
+## 贡献
+
+欢迎提交 issue 和 pull request。修改 probe 行为、候选 profile、协议适配器或验证 fixture 前，请先阅读 [CONTRIBUTING.md](./CONTRIBUTING.md)。
+
+## 贡献者
+
+实时贡献者列表见 GitHub contributors 图：<https://github.com/changeworldBT/model-authenticator-skill/graphs/contributors>。
 
 ## 仓库地址
 
