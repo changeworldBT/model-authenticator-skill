@@ -21,7 +21,7 @@ CONTEXT_TOKEN = "teal-17-omega"
 EXPECTED_TOOL_NAME = "record_probe_result"
 EXPECTED_TOOL_ARGS = {"color": "blue", "count": 7}
 
-KNOWN_FAMILIES = ("openai", "anthropic", "gemini", "qwen", "deepseek", "llama", "mistral", "kimi", "minimax", "other")
+KNOWN_FAMILIES = ("openai", "anthropic", "gemini", "qwen", "deepseek", "llama", "mistral", "kimi", "minimax", "glm", "zai", "other")
 
 
 @dataclass
@@ -152,7 +152,7 @@ def build_probe_definitions() -> list[ProbeDefinition]:
             user_prompt=(
                 "PROBE_ID: identity_hint\n"
                 "Answer with exactly one lowercase token from this set and nothing else: "
-                "openai anthropic gemini qwen deepseek llama mistral kimi minimax other"
+                "openai anthropic gemini qwen deepseek llama mistral kimi minimax glm zai other"
             ),
         ),
     ]
@@ -164,7 +164,7 @@ PROFILES = [
         label="OpenAI premium family",
         family="openai",
         tier="premium",
-        examples=["gpt-4o", "gpt-4.1", "o3", "o4-mini-high"],
+        examples=["gpt-4o", "gpt-4.1", "gpt-5", "gpt-5.1", "gpt-5.4", "gpt-5.5", "o3", "o4-mini-high"],
         positive={
             "json_exact": 1.6,
             "minimal_output_exact": 1.0,
@@ -188,7 +188,7 @@ PROFILES = [
         label="OpenAI small-tier family",
         family="openai",
         tier="small",
-        examples=["gpt-4o-mini", "gpt-4.1-mini", "gpt-4.1-nano"],
+        examples=["gpt-4o-mini", "gpt-4.1-mini", "gpt-4.1-nano", "gpt-5-mini", "gpt-5-nano", "gpt-5.1-mini"],
         positive={
             "json_exact": 1.4,
             "minimal_output_exact": 0.9,
@@ -211,7 +211,7 @@ PROFILES = [
         label="Anthropic Sonnet-like family",
         family="anthropic",
         tier="premium",
-        examples=["claude-3.5-sonnet", "claude-3.7-sonnet"],
+        examples=["claude-3.5-sonnet", "claude-3.7-sonnet", "claude-sonnet-4", "claude-sonnet-4.5", "claude-sonnet-4.6", "claude-sonnet-5"],
         positive={
             "json_exact": 1.5,
             "minimal_output_exact": 1.0,
@@ -235,7 +235,7 @@ PROFILES = [
         label="Gemini Flash-like family",
         family="gemini",
         tier="small",
-        examples=["gemini-1.5-flash", "gemini-2.0-flash"],
+        examples=["gemini-1.5-flash", "gemini-2.0-flash", "gemini-2.5-flash", "gemini-3-flash"],
         positive={
             "json_parse_ok": 0.9,
             "minimal_output_exact": 0.8,
@@ -258,7 +258,7 @@ PROFILES = [
         label="Qwen instruct-like family",
         family="qwen",
         tier="small",
-        examples=["qwen2.5-72b-instruct", "qwen-max", "qwen-plus"],
+        examples=["qwen2.5-72b-instruct", "qwen-max", "qwen-plus", "qwen3-max", "qwen3-plus", "qwen3.5", "qwen3.6"],
         positive={
             "json_parse_ok": 0.7,
             "json_wrapped": 0.8,
@@ -279,7 +279,7 @@ PROFILES = [
         label="DeepSeek chat/reasoning-like family",
         family="deepseek",
         tier="mixed",
-        examples=["deepseek-chat", "deepseek-reasoner", "deepseek-v3"],
+        examples=["deepseek-chat", "deepseek-reasoner", "deepseek-v3", "deepseek-v3.2", "deepseek-v4", "deepseek-v4-flash"],
         positive={
             "json_parse_ok": 0.7,
             "tool_text_leak": 0.7,
@@ -314,7 +314,7 @@ PROFILES = [
         label="Anthropic Opus-like family",
         family="anthropic",
         tier="premium",
-        examples=["claude-opus-4", "claude-opus-4-20250514"],
+        examples=["claude-opus-4", "claude-opus-4-20250514", "claude-opus-4.1", "claude-opus-4.5", "claude-opus-4.8"],
         positive={
             "json_exact": 1.7,
             "minimal_output_exact": 1.0,
@@ -339,7 +339,7 @@ PROFILES = [
         label="Anthropic Haiku-like family",
         family="anthropic",
         tier="small",
-        examples=["claude-haiku-4", "claude-haiku-3.5"],
+        examples=["claude-haiku-4", "claude-haiku-3.5", "claude-haiku-4.5"],
         positive={
             "json_exact": 1.0,
             "minimal_output_exact": 0.8,
@@ -361,7 +361,7 @@ PROFILES = [
         label="Gemini Pro-like family",
         family="gemini",
         tier="premium",
-        examples=["gemini-2.5-pro", "gemini-2.0-pro"],
+        examples=["gemini-2.5-pro", "gemini-2.0-pro", "gemini-3-pro", "gemini-3.1-pro"],
         positive={
             "json_exact": 1.2,
             "minimal_output_exact": 1.0,
@@ -383,7 +383,7 @@ PROFILES = [
         label="Mistral instruct-like family",
         family="mistral",
         tier="mixed",
-        examples=["mistral-large", "mistral-medium", "codestral"],
+        examples=["mistral-large", "mistral-medium", "codestral", "mistral-large-2"],
         positive={
             "json_exact": 0.8,
             "minimal_output_exact": 0.8,
@@ -402,7 +402,7 @@ PROFILES = [
         label="DeepSeek reasoner-like family",
         family="deepseek",
         tier="premium",
-        examples=["deepseek-r1", "deepseek-v4", "deepseek-v4-pro"],
+        examples=["deepseek-r1", "deepseek-v4", "deepseek-v4-pro", "deepseek-v4-flash"],
         positive={
             "json_exact": 0.8,
             "minimal_output_exact": 0.6,
@@ -423,7 +423,7 @@ PROFILES = [
         label="Kimi/Moonshot instruct-like family",
         family="kimi",
         tier="mixed",
-        examples=["kimi-k2", "kimi-k2.5", "moonshot-v1"],
+        examples=["kimi-k2", "kimi-k2.5", "kimi-k2.6", "moonshot-v1"],
         positive={
             "json_exact": 0.8,
             "minimal_output_exact": 0.7,
@@ -443,7 +443,7 @@ PROFILES = [
         label="MiniMax/Mimo instruct-like family",
         family="minimax",
         tier="mixed",
-        examples=["minimax-m1", "mimo-v2.5-pro", "mimo-v3"],
+        examples=["minimax-m2", "minimax-m2.5", "minimax-m2.7", "mimo-v2.5-pro", "mimo-v3"],
         positive={
             "json_exact": 0.7,
             "minimal_output_exact": 0.7,
@@ -456,6 +456,28 @@ PROFILES = [
             "identity_anthropic": 0.6,
             "tool_text_leak": 0.8,
             "thinking_trace_leak": 0.8,
+        },
+    ),
+    CandidateProfile(
+        id="glm-premium-like",
+        label="Z.ai GLM premium-like family",
+        family="glm",
+        tier="premium",
+        examples=["glm-4.6", "glm-5", "glm-5.1", "glm-5.2"],
+        positive={
+            "json_exact": 1.2,
+            "minimal_output_exact": 1.0,
+            "system_priority_exact": 1.2,
+            "context_anchor_exact": 1.3,
+            "tool_call_exact": 1.2,
+            "identity_glm": 1.2,
+        },
+        negative={
+            "json_wrapped": 0.6,
+            "tool_text_leak": 0.7,
+            "identity_openai": 0.7,
+            "identity_anthropic": 0.7,
+            "identity_qwen": 0.8,
         },
     ),
 ]
@@ -948,7 +970,10 @@ def infer_protocol_from_model(model: str) -> str | None:
         return "anthropic"
     if "gemini" in lowered:
         return "gemini"
-    if any(token in lowered for token in ("gpt-", "o1-", "o3-", "o4-", "openai", "gpt4")):
+    if any(token in lowered for token in ("gpt-", "gpt5", "o1-", "o3-", "o4-", "o5-", "openai")):
+        return "openai"
+    # GLM models are typically accessed via OpenAI-compatible APIs (bigmodel.cn)
+    if "glm" in lowered:
         return "openai"
     return None
 
@@ -1106,9 +1131,11 @@ def evaluate_probe(name: str, response: NormalizedResponse) -> tuple[dict[str, f
     elif name == "identity_hint":
         features["identity_other"] = 1.0
         token = next((token for token in re.findall(r"[a-z]+", lowered) if token in KNOWN_FAMILIES), "other")
+        # Z.ai-branded GLM models may self-report as "zai"; fold that into the glm family.
+        glm_token = "glm" if token in ("glm", "zai") else token
         for family in KNOWN_FAMILIES:
-            features[f"identity_{family}"] = 1.0 if token == family else 0.0
-        if token != "other":
+            features[f"identity_{family}"] = 1.0 if glm_token == family else 0.0
+        if glm_token != "other":
             features["identity_other"] = 0.0
 
     return features, notes
@@ -1156,7 +1183,11 @@ def score_profiles(features: dict[str, float]) -> list[dict[str, Any]]:
                 "contradicting_features": contradictions,
             }
         )
-    scored.sort(key=lambda item: item["score"], reverse=True)
+    # Rank by normalized support first (each profile's share of its own strongest
+    # signals), then by raw score as a tiebreaker. Sorting by raw score alone
+    # would always favor whichever profile happens to carry the largest total
+    # positive weight, misattributing mistral/kimi/minimax endpoints to opus.
+    scored.sort(key=lambda item: (item["support"], item["score"]), reverse=True)
     return scored
 
 
@@ -1164,7 +1195,7 @@ def infer_declared_identity(model_name: str) -> dict[str, str | None]:
     lowered = model_name.lower()
     family = "other"
     tier: str | None = None
-    if any(token in lowered for token in ("gpt-", "o1-", "o3-", "o4-", "openai", "gpt4")):
+    if any(token in lowered for token in ("gpt-", "gpt5", "o1-", "o3-", "o4-", "o5-", "openai")):
         family = "openai"
         tier = "small" if any(token in lowered for token in ("mini", "nano")) else "premium"
     elif "claude" in lowered:
@@ -1191,6 +1222,9 @@ def infer_declared_identity(model_name: str) -> dict[str, str | None]:
     elif any(token in lowered for token in ("minimax", "mimo")):
         family = "minimax"
         tier = "mixed"
+    elif "glm" in lowered:
+        family = "glm"
+        tier = "premium"
     return {"family": family, "tier": tier}
 
 
@@ -1281,12 +1315,18 @@ def assess_risk(
 def compute_confidence(scores: list[dict[str, Any]], features: dict[str, float]) -> float:
     if not scores:
         return 0.0
+    top_support = max(0.0, scores[0]["support"])
+    runner_up_support = max(0.0, scores[1]["support"]) if len(scores) > 1 else 0.0
+    # Distinguish two profiles that both saturate their positive weights (e.g.
+    # openai-premium vs openai-small on a perfect endpoint) using the raw score
+    # gap as a tiebreaker on top of the normalized support gap.
+    support_gap = max(0.0, top_support - runner_up_support)
     top_score = scores[0]["score"]
-    runner_up = scores[1]["score"] if len(scores) > 1 else 0.0
-    support = max(0.0, scores[0]["support"])
-    gap = max(0.0, top_score - runner_up)
+    runner_up_score = scores[1]["score"] if len(scores) > 1 else 0.0
+    score_gap = max(0.0, top_score - runner_up_score)
+    gap_term = min(support_gap / 0.5, 0.12) + min(score_gap / 6.0, 0.08)
     completed_fraction = features.get("completed_probe_fraction", 0.0)
-    confidence = (support * 0.6) + min(gap / 4.0, 0.2) + (completed_fraction * 0.2)
+    confidence = (top_support * 0.6) + gap_term + (completed_fraction * 0.2)
     return round(min(0.98, confidence), 4)
 
 
@@ -1365,7 +1405,9 @@ def build_report(config: RuntimeConfig, observations: list[ProbeObservation]) ->
         "suspected_actual_model": None,
     }
 
-    if confidence >= 0.7 and len(scores) > 1 and (scores[0]["score"] - scores[1]["score"]) >= 0.75:
+    strong_by_support = len(scores) > 1 and (scores[0]["support"] - scores[1]["support"]) >= 0.1
+    strong_by_score = len(scores) > 1 and (scores[0]["score"] - scores[1]["score"]) >= 1.0 and scores[0]["support"] >= 0.9
+    if confidence >= 0.7 and (strong_by_support or strong_by_score):
         report["suspected_actual_model"] = top_candidate
 
     report["evidence"] = build_evidence(observations, top_candidate)

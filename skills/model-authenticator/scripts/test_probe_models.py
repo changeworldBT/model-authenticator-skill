@@ -238,6 +238,139 @@ class ProbeModelsIntegrationTests(unittest.TestCase):
         self.assertEqual(report["runtime"]["protocol"], "anthropic")
         self.assertIn("codex:config.toml:protocol", report["runtime"]["config_sources"])
 
+    def test_mistral_profile_detected(self) -> None:
+        server = MockRelayServer("mistral").start()
+        try:
+            code, report = self.run_probe(
+                {
+                    "MODEL_AUTH_PROTOCOL": "openai",
+                    "MODEL_AUTH_BASE_URL": server.openai_base_url,
+                    "MODEL_AUTH_API_KEY": "test-key",
+                    "MODEL_AUTH_MODEL": "mistral-large",
+                }
+            )
+        finally:
+            server.stop()
+
+        self.assertEqual(code, 0)
+        self.assertEqual(report["candidate_models"][0]["family"], "mistral")
+        self.assertFalse(report["mismatch_detected"])
+        self.assertGreaterEqual(report["confidence"], 0.7)
+
+    def test_kimi_profile_detected(self) -> None:
+        server = MockRelayServer("kimi").start()
+        try:
+            code, report = self.run_probe(
+                {
+                    "MODEL_AUTH_PROTOCOL": "openai",
+                    "MODEL_AUTH_BASE_URL": server.openai_base_url,
+                    "MODEL_AUTH_API_KEY": "test-key",
+                    "MODEL_AUTH_MODEL": "kimi-k2.6",
+                }
+            )
+        finally:
+            server.stop()
+
+        self.assertEqual(code, 0)
+        self.assertEqual(report["candidate_models"][0]["family"], "kimi")
+        self.assertFalse(report["mismatch_detected"])
+        self.assertGreaterEqual(report["confidence"], 0.7)
+
+    def test_minimax_profile_detected(self) -> None:
+        server = MockRelayServer("minimax").start()
+        try:
+            code, report = self.run_probe(
+                {
+                    "MODEL_AUTH_PROTOCOL": "openai",
+                    "MODEL_AUTH_BASE_URL": server.openai_base_url,
+                    "MODEL_AUTH_API_KEY": "test-key",
+                    "MODEL_AUTH_MODEL": "minimax-m2.7",
+                }
+            )
+        finally:
+            server.stop()
+
+        self.assertEqual(code, 0)
+        self.assertEqual(report["candidate_models"][0]["family"], "minimax")
+        self.assertFalse(report["mismatch_detected"])
+        self.assertGreaterEqual(report["confidence"], 0.7)
+
+    def test_deepseek_reasoner_profile_detected(self) -> None:
+        server = MockRelayServer("deepseek-reasoner").start()
+        try:
+            code, report = self.run_probe(
+                {
+                    "MODEL_AUTH_PROTOCOL": "openai",
+                    "MODEL_AUTH_BASE_URL": server.openai_base_url,
+                    "MODEL_AUTH_API_KEY": "test-key",
+                    "MODEL_AUTH_MODEL": "deepseek-v4",
+                }
+            )
+        finally:
+            server.stop()
+
+        self.assertEqual(code, 0)
+        self.assertEqual(report["candidate_models"][0]["family"], "deepseek")
+        self.assertFalse(report["mismatch_detected"])
+        self.assertGreaterEqual(report["confidence"], 0.7)
+
+    def test_glm_premium_profile_detected(self) -> None:
+        server = MockRelayServer("glm-premium").start()
+        try:
+            code, report = self.run_probe(
+                {
+                    "MODEL_AUTH_PROTOCOL": "openai",
+                    "MODEL_AUTH_BASE_URL": server.openai_base_url,
+                    "MODEL_AUTH_API_KEY": "test-key",
+                    "MODEL_AUTH_MODEL": "glm-5.2",
+                }
+            )
+        finally:
+            server.stop()
+
+        self.assertEqual(code, 0)
+        self.assertEqual(report["candidate_models"][0]["family"], "glm")
+        self.assertFalse(report["mismatch_detected"])
+        self.assertGreaterEqual(report["confidence"], 0.7)
+        self.assertEqual(report["declared_identity"]["family"], "glm")
+        self.assertEqual(report["declared_identity"]["tier"], "premium")
+
+    def test_anthropic_haiku_profile_detected(self) -> None:
+        server = MockRelayServer("anthropic-haiku").start()
+        try:
+            code, report = self.run_probe(
+                {
+                    "MODEL_AUTH_PROTOCOL": "anthropic",
+                    "MODEL_AUTH_BASE_URL": server.anthropic_base_url,
+                    "MODEL_AUTH_API_KEY": "test-key",
+                    "MODEL_AUTH_MODEL": "claude-haiku-4.5",
+                }
+            )
+        finally:
+            server.stop()
+
+        self.assertEqual(code, 0)
+        self.assertEqual(report["candidate_models"][0]["family"], "anthropic")
+        self.assertFalse(report["mismatch_detected"])
+
+    def test_gemini_pro_profile_detected(self) -> None:
+        server = MockRelayServer("gemini-pro").start()
+        try:
+            code, report = self.run_probe(
+                {
+                    "MODEL_AUTH_PROTOCOL": "gemini",
+                    "MODEL_AUTH_BASE_URL": server.gemini_base_url,
+                    "MODEL_AUTH_API_KEY": "test-key",
+                    "MODEL_AUTH_MODEL": "gemini-3.1-pro",
+                }
+            )
+        finally:
+            server.stop()
+
+        self.assertEqual(code, 0)
+        self.assertEqual(report["candidate_models"][0]["family"], "gemini")
+        self.assertFalse(report["mismatch_detected"])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -10,10 +10,26 @@ This repository contains a single portable skill at `skills/model-authenticator/
 
 - Probe a live endpoint through repeated behavior tests instead of trusting the returned `model` field
 - Support OpenAI-compatible, Anthropic-compatible, and Gemini-style APIs
-- Infer likely family and tier from JSON discipline, tool-call behavior, instruction priority, context recall, and family hints
+- Infer likely family and tier from JSON discipline, tool-call behavior, instruction priority, context recall, thinking traces, and family hints
 - Return either a strong single candidate or a ranked candidate list when confidence is lower
 - Flag likely downgrade or cross-family substitution with explicit evidence
 - Auto-discover configured `model` and `base_url` before asking for overrides
+- Recognize 10 model families: OpenAI, Anthropic, Gemini, DeepSeek, Qwen, Llama, Mistral, Kimi, MiniMax, and GLM (Z.ai)
+
+## Supported Families
+
+| Family | Tiers | Example Models |
+|---|---|---|
+| **openai** | premium, small | GPT-5.5, GPT-5.4, GPT-5, GPT-4.1, o3, o4-mini-high; GPT-5-mini, GPT-4o-mini, GPT-4.1-nano |
+| **anthropic** | premium (opus/sonnet), small (haiku) | Claude Opus 4.8, Sonnet 5, Sonnet 4.6; Haiku 4.5 |
+| **gemini** | premium (pro), small (flash) | Gemini 3.1 Pro, Gemini 3 Pro, Gemini 2.5 Pro; Gemini 3 Flash, 2.5 Flash |
+| **deepseek** | chat, reasoner | DeepSeek V4, V4-Pro, V4-Flash, V3.2; DeepSeek-R1 |
+| **qwen** | instruct | Qwen3.6, Qwen3.5, Qwen3-Max, Qwen3-Plus |
+| **llama** | instruct | Llama 4 Maverick, Llama 3.1 70B |
+| **mistral** | instruct | Mistral Large 2, Codestral |
+| **kimi** | instruct | Kimi K2.6, K2.5, Moonshot V1 |
+| **minimax** | instruct | MiniMax M2.7, M2.5, Mimo V3 |
+| **glm** | premium | GLM-5.2, GLM-5.1, GLM-5, GLM-4.6 |
 
 ## Repository Layout
 
@@ -71,19 +87,25 @@ python skills/model-authenticator/scripts/probe_models.py
 ### Explicit OpenAI-Compatible Endpoint
 
 ```bash
-python skills/model-authenticator/scripts/probe_models.py --protocol openai --base-url https://example.com/v1 --api-key YOUR_KEY --model gpt-4o
+python skills/model-authenticator/scripts/probe_models.py --protocol openai --base-url https://example.com/v1 --api-key YOUR_KEY --model gpt-5.5
+```
+
+### Explicit GLM/Zhipu Endpoint (OpenAI-compatible)
+
+```bash
+python skills/model-authenticator/scripts/probe_models.py --protocol openai --base-url https://open.bigmodel.cn/api/paas/v4 --api-key YOUR_KEY --model glm-5.2
 ```
 
 ### Explicit Anthropic-Compatible Endpoint
 
 ```bash
-python skills/model-authenticator/scripts/probe_models.py --protocol anthropic --base-url https://example.com --api-key YOUR_KEY --model claude-3-7-sonnet
+python skills/model-authenticator/scripts/probe_models.py --protocol anthropic --base-url https://example.com --api-key YOUR_KEY --model claude-sonnet-5
 ```
 
 ### Explicit Gemini-Style Endpoint
 
 ```bash
-python skills/model-authenticator/scripts/probe_models.py --protocol gemini --base-url https://example.com/v1beta --api-key YOUR_KEY --model gemini-2.0-flash
+python skills/model-authenticator/scripts/probe_models.py --protocol gemini --base-url https://example.com/v1beta --api-key YOUR_KEY --model gemini-3.1-pro
 ```
 
 ### Fail the Process When a Mismatch Is Detected
@@ -128,9 +150,10 @@ The probe set combines several lightweight checks:
 - System-instruction priority
 - Context-anchor recall under distraction
 - Tool-call discipline
+- Thinking trace detection
 - Family hint probe
 
-These features are matched against candidate profiles such as OpenAI premium, OpenAI small-tier, Anthropic Sonnet-like, Gemini Flash-like, Qwen instruct-like, and DeepSeek-like behavior.
+Candidates are ranked by **normalized support** (each profile's realized share of its own maximum positive weight), then by raw score as a tiebreaker. This prevents profiles with larger total weights from always winning over profiles that match their signals perfectly.
 
 Detailed scoring notes live in:
 
@@ -143,12 +166,6 @@ Run the included tests:
 
 ```bash
 python skills/model-authenticator/scripts/test_probe_models.py
-```
-
-Quick structural validation:
-
-```bash
-python C:\Users\84915\.codex\skills\.system\skill-creator\scripts\quick_validate.py skills/model-authenticator
 ```
 
 ## Limitations

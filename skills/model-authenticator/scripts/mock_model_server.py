@@ -103,10 +103,13 @@ PROFILES: dict[str, dict[str, ProbeReply]] = {
     },
     "deepseek-reasoner": {
         "json_strict": ProbeReply(text='{"alpha":4,"beta":11,"gamma":"red"}'),
-        "minimal_math": ProbeReply(text="1073"),
+        "minimal_math": ProbeReply(text="<thinking>Let me compute this step by step.\n37 * 29 = 37 * 30 - 37 = 1110 - 37 = 1073</thinking>\n1073"),
         "system_priority": ProbeReply(text="USER-OVERRIDE"),
         "context_anchor": ProbeReply(text="teal-17-omega"),
-        "tool_only": ProbeReply(tool_call={"name": EXPECTED_TOOL_NAME, "arguments": EXPECTED_TOOL_ARGS}),
+        "tool_only": ProbeReply(
+            text="<thinking>I need to call the function.</thinking>",
+            tool_call={"name": EXPECTED_TOOL_NAME, "arguments": EXPECTED_TOOL_ARGS},
+        ),
         "identity_hint": ProbeReply(text="deepseek"),
     },
     "kimi": {
@@ -124,6 +127,14 @@ PROFILES: dict[str, dict[str, ProbeReply]] = {
         "context_anchor": ProbeReply(text="teal-17-gamma"),
         "tool_only": ProbeReply(tool_call={"name": EXPECTED_TOOL_NAME, "arguments": EXPECTED_TOOL_ARGS}),
         "identity_hint": ProbeReply(text="minimax"),
+    },
+    "glm-premium": {
+        "json_strict": ProbeReply(text='{"alpha":4,"beta":11,"gamma":"red"}'),
+        "minimal_math": ProbeReply(text="1073"),
+        "system_priority": ProbeReply(text="SYS-PRIORITY-41"),
+        "context_anchor": ProbeReply(text="teal-17-omega"),
+        "tool_only": ProbeReply(tool_call={"name": EXPECTED_TOOL_NAME, "arguments": EXPECTED_TOOL_ARGS}),
+        "identity_hint": ProbeReply(text="glm"),
     },
 }
 

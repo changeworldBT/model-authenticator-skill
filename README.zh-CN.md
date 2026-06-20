@@ -10,10 +10,26 @@
 
 - 通过多轮行为测试探测真实模型，而不是只看返回的 `model` 字段
 - 支持 OpenAI 兼容、Anthropic 兼容、Gemini 风格三类接口
-- 基于 JSON 纪律、工具调用行为、指令优先级、上下文保持、家族提示等特征做归因
+- 基于 JSON 纪律、工具调用行为、指令优先级、上下文保持、思维链痕迹、家族提示等特征做归因
 - 在证据足够时给出强结论，在证据较弱时返回候选集
 - 明确标记疑似降配或跨家族替换，并给出证据
 - 在询问用户之前，优先自动发现本地已经配置好的 `model` 和 `base_url`
+- 识别 10 个模型家族：OpenAI、Anthropic、Gemini、DeepSeek、Qwen、Llama、Mistral、Kimi、MiniMax、GLM（智谱/Z.ai）
+
+## 支持的模型家族
+
+| 家族 | 分层 | 示例模型 |
+|---|---|---|
+| **openai** | 高端、小模型 | GPT-5.5, GPT-5.4, GPT-5, GPT-4.1, o3, o4-mini-high; GPT-5-mini, GPT-4o-mini |
+| **anthropic** | 高端 (opus/sonnet)、小模型 (haiku) | Claude Opus 4.8, Sonnet 5, Sonnet 4.6; Haiku 4.5 |
+| **gemini** | 高端 (pro)、小模型 (flash) | Gemini 3.1 Pro, Gemini 3 Pro; Gemini 3 Flash, 2.5 Flash |
+| **deepseek** | 对话、推理 | DeepSeek V4, V4-Pro, V4-Flash, V3.2; DeepSeek-R1 |
+| **qwen** | 指令 | Qwen3.6, Qwen3.5, Qwen3-Max, Qwen3-Plus |
+| **llama** | 指令 | Llama 4 Maverick, Llama 3.1 70B |
+| **mistral** | 指令 | Mistral Large 2, Codestral |
+| **kimi** | 指令 | Kimi K2.6, K2.5, Moonshot V1 |
+| **minimax** | 指令 | MiniMax M2.7, M2.5, Mimo V3 |
+| **glm** | 高端 | GLM-5.2, GLM-5.1, GLM-5, GLM-4.6 |
 
 ## 仓库结构
 
@@ -71,19 +87,25 @@ python skills/model-authenticator/scripts/probe_models.py
 ### 显式指定 OpenAI 兼容端点
 
 ```bash
-python skills/model-authenticator/scripts/probe_models.py --protocol openai --base-url https://example.com/v1 --api-key YOUR_KEY --model gpt-4o
+python skills/model-authenticator/scripts/probe_models.py --protocol openai --base-url https://example.com/v1 --api-key YOUR_KEY --model gpt-5.5
+```
+
+### 显式指定 GLM/智谱端点（OpenAI 兼容）
+
+```bash
+python skills/model-authenticator/scripts/probe_models.py --protocol openai --base-url https://open.bigmodel.cn/api/paas/v4 --api-key YOUR_KEY --model glm-5.2
 ```
 
 ### 显式指定 Anthropic 兼容端点
 
 ```bash
-python skills/model-authenticator/scripts/probe_models.py --protocol anthropic --base-url https://example.com --api-key YOUR_KEY --model claude-3-7-sonnet
+python skills/model-authenticator/scripts/probe_models.py --protocol anthropic --base-url https://example.com --api-key YOUR_KEY --model claude-sonnet-5
 ```
 
 ### 显式指定 Gemini 风格端点
 
 ```bash
-python skills/model-authenticator/scripts/probe_models.py --protocol gemini --base-url https://example.com/v1beta --api-key YOUR_KEY --model gemini-2.0-flash
+python skills/model-authenticator/scripts/probe_models.py --protocol gemini --base-url https://example.com/v1beta --api-key YOUR_KEY --model gemini-3.1-pro
 ```
 
 ### 检测到替换时让进程失败
@@ -128,9 +150,10 @@ python skills/model-authenticator/scripts/probe_models.py --timeout 60
 - system 指令优先级
 - 干扰块下的上下文锚点保持
 - 工具调用纪律
+- 思维链痕迹检测
 - 家族提示探针
 
-这些特征会与若干候选 profile 匹配，包括 OpenAI 高端、OpenAI 小模型、Anthropic Sonnet 风格、Gemini Flash 风格、Qwen instruct 风格、DeepSeek 风格等。
+候选排序采用**归一化支持度**（每个 profile 已实现信号占自身最大正向权重的比例）为主、原始得分为辅的方式。这样防止权重总量更大的 profile 总是胜过信号完全匹配的 profile。
 
 详细规则见：
 
@@ -143,12 +166,6 @@ python skills/model-authenticator/scripts/probe_models.py --timeout 60
 
 ```bash
 python skills/model-authenticator/scripts/test_probe_models.py
-```
-
-运行结构校验：
-
-```bash
-python C:\Users\84915\.codex\skills\.system\skill-creator\scripts\quick_validate.py skills/model-authenticator
 ```
 
 ## 局限性

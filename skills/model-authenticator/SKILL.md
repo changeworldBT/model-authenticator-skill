@@ -28,10 +28,28 @@ The script resolves each effective value in this order:
 If autodiscovery misses something, rerun with explicit overrides:
 
 ```bash
-python scripts/probe_models.py --protocol openai --base-url https://example.com/v1 --api-key "$env:OPENAI_API_KEY" --model gpt-4o
-python scripts/probe_models.py --protocol anthropic --base-url https://example.com --api-key "$env:ANTHROPIC_API_KEY" --model claude-3-7-sonnet
-python scripts/probe_models.py --protocol gemini --base-url https://example.com/v1beta --api-key "$env:GEMINI_API_KEY" --model gemini-2.0-flash
+python scripts/probe_models.py --protocol openai --base-url https://example.com/v1 --api-key "$env:OPENAI_API_KEY" --model gpt-5.5
+python scripts/probe_models.py --protocol openai --base-url https://open.bigmodel.cn/api/paas/v4 --api-key "$env:ZHIPU_API_KEY" --model glm-5.2
+python scripts/probe_models.py --protocol anthropic --base-url https://example.com --api-key "$env:ANTHROPIC_API_KEY" --model claude-sonnet-5
+python scripts/probe_models.py --protocol gemini --base-url https://example.com/v1beta --api-key "$env:GEMINI_API_KEY" --model gemini-3.1-pro
 ```
+
+## Supported Families
+
+The probe recognizes these model families:
+
+| Family | Tiers | Example Models |
+|---|---|---|
+| **openai** | premium, small | GPT-5.5, GPT-5.4, GPT-5, GPT-4.1, o3; GPT-5-mini, GPT-4o-mini |
+| **anthropic** | premium (opus/sonnet), small (haiku) | Opus 4.8, Sonnet 5, Sonnet 4.6; Haiku 4.5 |
+| **gemini** | premium (pro), small (flash) | Gemini 3.1 Pro; Gemini 3 Flash |
+| **deepseek** | chat, reasoner | DeepSeek V4, V4-Flash; DeepSeek-R1 |
+| **qwen** | instruct | Qwen3.6, Qwen3-Max, Qwen3-Plus |
+| **llama** | instruct | Llama 4 Maverick |
+| **mistral** | instruct | Mistral Large 2, Codestral |
+| **kimi** | instruct | Kimi K2.6, Moonshot V1 |
+| **minimax** | instruct | MiniMax M2.7, Mimo V3 |
+| **glm** | premium | GLM-5.2, GLM-5.1, GLM-5, GLM-4.6 |
 
 ## Workflow
 
@@ -59,7 +77,7 @@ python scripts/probe_models.py --protocol gemini --base-url https://example.com/
 
 Use the script output as the primary evidence source.
 
-- `suspected_actual_model`: only trust this when `confidence` is strong and the score gap is meaningful.
+- `suspected_actual_model`: only trust this when `confidence` is strong and the support gap is meaningful.
 - `candidate_models`: use this when the endpoint behaves like a family or tier but not a uniquely identifiable SKU.
 - `risk_level`:
   - `high`: strong evidence of substitution or cross-family mismatch
@@ -80,7 +98,6 @@ Use these commands when maintaining this skill:
 
 ```bash
 python scripts/test_probe_models.py
-python C:\Users\84915\.codex\skills\.system\skill-creator\scripts\quick_validate.py C:\Users\84915\.codex\skills\model-authenticator
 ```
 
 Forward-test by using the skill on a real relay question phrased the way a user would ask it. Do not trust a passing result until the script output and the natural-language summary agree.

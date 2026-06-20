@@ -5,6 +5,8 @@
 - Default path in the script is `chat/completions`.
 - This is the most common relay shape and the best first choice unless the endpoint is clearly Anthropic- or Gemini-native.
 - Many relays echo the requested `model` field back unchanged. Treat that as low-trust metadata.
+- GLM models (Z.ai / Zhipu) expose OpenAI-compatible APIs through `bigmodel.cn` and are probed via this adapter.
+- The script auto-detects GLM model names (e.g. `glm-5.2`) and routes them to the OpenAI protocol.
 
 ## Anthropic-Compatible
 
