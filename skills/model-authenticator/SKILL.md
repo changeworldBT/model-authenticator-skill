@@ -9,6 +9,8 @@ Use this skill to probe a live endpoint and infer the likely underlying model fa
 
 Treat endpoint metadata such as the returned `model` field as low-trust evidence. Favor repeated behavioral probes and candidate scoring.
 
+**Attribution boundary:** the probe can support a likely behavioral family or tier; it cannot cryptographically prove an exact hidden SKU. A candidate profile is a fingerprint match, not a claim that the provider runs that exact example model.
+
 ## Quick Start
 
 From `skills/model-authenticator/`, run the bundled script with no flags first:
@@ -54,9 +56,10 @@ The probe recognizes these model families:
 ## Workflow
 
 1. Resolve runtime configuration before asking the user for credentials. Assume the endpoint is already configured unless discovery proves otherwise.
-2. Allow local or self-hosted relays to run without an API key when the endpoint accepts anonymous requests.
+2. Allow local or self-hosted relays to run without an API key when the endpoint accepts anonymous requests. Do not paste a production key into chat, a shell history, or a report; pass it through the provider environment variable instead.
 3. Run `python scripts/probe_models.py` with the default `full` probe set when the question is high-stakes or the relay already looks suspicious.
-4. Run `python scripts/probe_models.py --probe-set fast` only when you need a quick triage first.
+4. Run `python scripts/probe_models.py --probe-set fast` only when you need a quick triage first; do not use a fast result as a production-routing decision.
+5. For a high-cost accusation or CI enforcement, run the full probe at least twice in separate sessions and compare the candidate family, confidence, and failed probes.
 5. Read the JSON report and summarize:
    - `status`
    - `declared_model`
@@ -66,11 +69,8 @@ The probe recognizes these model families:
    - `risk_level`
    - `evidence`
    - `contradictions`
-6. If the report says `mismatch_detected: true`, state clearly whether the relay looks like:
-   - same family but downgraded tier
-   - different family entirely
-   - inconclusive, but suspicious
-7. If confidence is below `0.7`, present the top candidate set instead of inventing a single exact model.
+6. If the report says `mismatch_detected: true`, state clearly whether the relay looks like a same-family downgrade or a different-family substitution. This flag is reserved for a conflicting result with confidence of at least `0.7`.
+7. If `risk_level` is `medium`, or confidence is below `0.7`, say **inconclusive but suspicious** when contradictions exist; present the top candidate set and recommend a repeat full probe instead of alleging substitution.
 8. If `status` is `unreachable`, fix connectivity or credentials first. Do not guess the underlying model from zero successful probes.
 
 ## Interpreting Results
@@ -85,7 +85,18 @@ Use the script output as the primary evidence source.
   - `low`: declared model and observed behavior are broadly aligned
 - `reported_models`: low-trust metadata echoed by the endpoint. Helpful for contradictions, not for proof.
 
-When the report conflicts with the endpoint's claimed model, explicitly say that the behavioral evidence outweighs the self-reported label.
+When a confirmed report conflicts with the endpoint's claimed model, explicitly say that the behavioral evidence outweighs the self-reported label. For a medium-risk result, say that the evidence conflicts but is not sufficient to confirm substitution.
+
+## Decision Gate
+
+| Report state | Required conclusion | Next action |
+|---|---|---|
+| `status: unreachable` | No attribution | Repair connectivity, protocol, or credentials. |
+| `mismatch_detected: true` and `risk_level: high` | Confirmed behavioral mismatch (family/tier only) | Preserve the report and repeat the full probe before escalating externally. |
+| `risk_level: medium` or confidence `< 0.7` | Inconclusive; possibly suspicious | Return ranked candidates, contradictions, and repeat the full probe. |
+| `risk_level: low` with confidence `>= 0.7` | Broadly aligned behavior | Do not claim cryptographic identity or an exact hidden SKU. |
+
+`--fail-on-mismatch` exits with code `2` only for the confirmed high-confidence case. It intentionally does not fail an ambiguous endpoint.
 
 ## References
 

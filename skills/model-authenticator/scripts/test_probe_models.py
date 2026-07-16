@@ -12,6 +12,7 @@ import unittest
 from pathlib import Path
 
 from mock_model_server import MockRelayServer
+import probe_models
 
 SCRIPT_PATH = Path(__file__).with_name("probe_models.py")
 
@@ -370,6 +371,18 @@ class ProbeModelsIntegrationTests(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertEqual(report["candidate_models"][0]["family"], "gemini")
         self.assertFalse(report["mismatch_detected"])
+
+
+class RiskAssessmentTests(unittest.TestCase):
+    def test_low_confidence_cross_family_result_is_inconclusive(self) -> None:
+        risk, mismatch_detected = probe_models.assess_risk(
+            {"family": "openai", "tier": "premium"},
+            {"family": "qwen", "tier": "small"},
+            confidence=0.45,
+        )
+
+        self.assertEqual(risk, "medium")
+        self.assertFalse(mismatch_detected)
 
 
 if __name__ == "__main__":

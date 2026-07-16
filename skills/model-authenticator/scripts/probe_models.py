@@ -1294,22 +1294,30 @@ def build_contradictions(
     return contradictions
 
 
+MISMATCH_CONFIDENCE_THRESHOLD = 0.7
+
+
 def assess_risk(
     declared_identity: dict[str, str | None],
     top_candidate: dict[str, Any],
     confidence: float,
 ) -> tuple[str, bool]:
-    mismatch = False
-    risk = "low"
-    if declared_identity["family"] != "other" and declared_identity["family"] != top_candidate["family"]:
-        mismatch = True
-        risk = "high"
-    elif declared_identity["tier"] == "premium" and top_candidate["tier"] == "small":
-        mismatch = True
-        risk = "high"
-    elif confidence < 0.7:
-        risk = "medium"
-    return risk, mismatch
+    cross_family = (
+        declared_identity["family"] != "other"
+        and declared_identity["family"] != top_candidate["family"]
+    )
+    downgraded_tier = (
+        declared_identity["tier"] == "premium" and top_candidate["tier"] == "small"
+    )
+    if cross_family or downgraded_tier:
+        if confidence >= MISMATCH_CONFIDENCE_THRESHOLD:
+            return "high", True
+        # A conflicting low-confidence candidate is useful triage evidence, but not
+        # enough to label the endpoint as substituted or fail an automated check.
+        return "medium", False
+    if confidence < MISMATCH_CONFIDENCE_THRESHOLD:
+        return "medium", False
+    return "low", False
 
 
 def compute_confidence(scores: list[dict[str, Any]], features: dict[str, float]) -> float:

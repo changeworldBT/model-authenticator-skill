@@ -108,11 +108,13 @@ python skills/model-authenticator/scripts/probe_models.py --protocol anthropic -
 python skills/model-authenticator/scripts/probe_models.py --protocol gemini --base-url https://example.com/v1beta --api-key YOUR_KEY --model gemini-3.1-pro
 ```
 
-### 检测到替换时让进程失败
+### 仅在确认替换时让进程失败
 
 ```bash
 python skills/model-authenticator/scripts/probe_models.py --fail-on-mismatch
 ```
+
+只有观察到的家族/档位与声明标签冲突，且置信度达到 `0.7` 时，命令才以退出码 `2` 失败。低置信度冲突仍是 `medium` 风险，不会阻断自动化。
 
 ### 快速探测、保存报告和超时
 
@@ -131,15 +133,15 @@ python skills/model-authenticator/scripts/probe_models.py --timeout 60
 - `status`：`ok`、`partial` 或 `unreachable`
 - `declared_model`：你要测试的声明模型
 - `runtime`：protocol、脱敏后的 base URL、声明模型和 `config_sources`
-- `suspected_actual_model`：在置信度足够高时给出的单一强结论
+- `suspected_actual_model`：置信度足够高时给出的最强行为 profile；它不是对隐藏精确 SKU 的证明
 - `candidate_models`：证据较弱时返回的候选排序
 - `confidence`：综合置信度
 - `risk_level`：`low`、`medium`、`high` 或 `unknown`
-- `mismatch_detected`：是否疑似发生替换或降配
+- `mismatch_detected`：已确认的行为替换或降配（`confidence >= 0.7`）；较低置信度的冲突保持为 `medium` 风险
 - `evidence`：支持结论的高价值证据
 - `contradictions`：冲突项或连通性失败原因
 
-如果 `status` 是 `unreachable`，不要推断真实模型，应该先修复连通性。
+如果 `status` 是 `unreachable`，不要推断真实模型，应该先修复连通性。对于高成本决策，应在独立会话中至少运行两次完整 probe，并比较两份报告后再升级为确认的替换结论。
 
 ## 评分思路
 
@@ -174,6 +176,7 @@ python skills/model-authenticator/scripts/test_probe_models.py
 - 某些 relay 会重写或标准化响应，导致家族特征被抹平
 - 中间件可能改变风格，但底层模型并没有变
 - 单次会话可能不足以下结论；如果端点不稳定或协议支持不完整，建议重复探测
+- 行为 profile 不能以密码学方式证明隐藏的精确 SKU、所有权或提供商部署
 
 ## 贡献
 

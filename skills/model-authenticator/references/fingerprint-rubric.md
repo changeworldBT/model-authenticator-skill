@@ -23,6 +23,8 @@ Infer the likely real model behind an endpoint by combining multiple weak signal
 
 Candidate profiles are ranked by **normalized support** (each profile's realized share of its own maximum positive weight), then by raw score as a tiebreaker. This ensures that a profile whose strong signals are fully matched ranks above one that merely carries a larger total weight. Confidence combines the top candidate's support, the support gap over the runner-up, and the fraction of probes that completed successfully.
 
+A profile is a behavioral fingerprint, not an exact-SKU detector. The example models name the intended family/tier comparison class; they do not establish that a relay is serving one of those exact models.
+
 ## Supported Families
 
 The probe recognizes these model families and can distinguish premium vs. small tiers where sufficient fingerprint data exists:
@@ -47,13 +49,16 @@ The probe recognizes these model families and can distinguish premium vs. small 
 - Cross-family substitution
   The declared family and observed family differ, for example a claimed DeepSeek model behaving more like OpenAI, or an OpenAI-labeled endpoint behaving like GLM.
 - Inconclusive but suspicious
-  The endpoint passes some probes and fails others, or probe support is too incomplete for a unique attribution.
+  The endpoint passes some probes and fails others, or probe support is too incomplete for a unique attribution. It must remain `mismatch_detected: false` with `risk_level: medium`.
+
+A **confirmed mismatch** requires both a family/tier conflict and a confidence of at least `0.7`. Below that threshold, preserve the contradiction as triage evidence but do not label the endpoint as substituted or let `--fail-on-mismatch` fail automation.
 
 ## Confidence Rules
 
 - Prefer a single `suspected_actual_model` only when the top candidate has both:
   - enough normalized support from completed probes (≥ 0.9), or a clear support gap over the runner-up (≥ 0.1)
   - a raw score gap that confirms the ranking when support alone is too close to call
+- Treat `confidence < 0.7` as inconclusive even if the top candidate conflicts with the declared label.
 - Fall back to `candidate_models` when:
   - tool support is missing
   - too many probes error out

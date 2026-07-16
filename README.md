@@ -108,11 +108,13 @@ python skills/model-authenticator/scripts/probe_models.py --protocol anthropic -
 python skills/model-authenticator/scripts/probe_models.py --protocol gemini --base-url https://example.com/v1beta --api-key YOUR_KEY --model gemini-3.1-pro
 ```
 
-### Fail the Process When a Mismatch Is Detected
+### Fail the Process Only for a Confirmed Mismatch
 
 ```bash
 python skills/model-authenticator/scripts/probe_models.py --fail-on-mismatch
 ```
+
+The command exits with code `2` only when the observed family/tier conflicts with the declared label **and** confidence is at least `0.7`. A low-confidence contradiction remains `medium` risk and does not fail automation.
 
 ### Fast Triage, Saved Report, and Timeout
 
@@ -139,7 +141,7 @@ The script emits JSON with these key fields:
 - `evidence`: high-signal reasons supporting the result
 - `contradictions`: conflicting signals or connectivity failures
 
-If `status` is `unreachable`, do not infer the real model. Fix connectivity first.
+If `status` is `unreachable`, do not infer the real model. Fix connectivity first. For high-cost decisions, run the full probe at least twice in separate sessions and compare both reports before escalating a confirmed mismatch.
 
 ## How It Scores
 
@@ -174,6 +176,7 @@ python skills/model-authenticator/scripts/test_probe_models.py
 - Some relays rewrite or normalize responses, which can blur family-level signals
 - Middleware can alter style without changing the underlying model
 - A single session may be inconclusive; rerun when the endpoint is unstable or partially implemented
+- A behavioral profile cannot cryptographically prove an exact hidden SKU, ownership, or provider deployment
 
 ## Contributing
 
